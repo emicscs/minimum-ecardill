@@ -1,4 +1,5 @@
 #include "minemu/boot.h"
+#include "minemu/console.h"
 #include "minemu/trap.h"
 #include "minemu/trace.h"
 
@@ -15,5 +16,6 @@ void minemu_kernel_main(const struct minemu_boot_info *boot_info) {
         minemu_fail_stop();
     }
     minemu_trace_event(1);
+    minemu_printf("hello world\n");
     minemu_fail_stop();
 }
