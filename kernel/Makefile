@@ -6,7 +6,22 @@ BUILD := build
 KERNEL := $(BUILD)/minimum-kernel.elf
 RUNTIME := $(BUILD)/libminemu_kernel.a
 
-CORE_OBJECT := $(BUILD)/core/main.o
+CORE_OBJECTS := \
+	$(BUILD)/core/main.o \
+	$(BUILD)/core/shell.o
+
+# Strong IRQ entry. These are kernel-link inputs, not members of
+# libminemu_kernel.a. exception.o in that archive provides weak
+# minemu_irq_trampoline and minemu_irq_dispatch that fail-stop. Once that
+# member is pulled (it also defines minemu_fail_stop), the weak definitions
+# satisfy vectors.S, so a strong copy that exists only later in the archive
+# is never extracted. --gc-sections then keeps the stubs.
+# Objects named on the kernel link line override the weak symbols. Leaving
+# them out of the archive also lets irq-context-switch supply its own copies.
+IRQ_OBJECTS := \
+	$(BUILD)/startup/irq.o \
+	$(BUILD)/runtime/irq.o
+
 RUNTIME_OBJECTS := \
 	$(BUILD)/runtime/block.o \
 	$(BUILD)/runtime/console.o \
@@ -17,7 +32,7 @@ RUNTIME_OBJECTS := \
 	$(BUILD)/startup/boot.o \
 	$(BUILD)/startup/vectors.o
 
-OBJECTS := $(CORE_OBJECT) $(RUNTIME_OBJECTS)
+OBJECTS := $(CORE_OBJECTS) $(IRQ_OBJECTS) $(RUNTIME_OBJECTS)
 DEPENDENCIES := $(OBJECTS:.o=.d)
 
 EXAMPLES := \
@@ -50,6 +65,7 @@ LDFLAGS := $(ARCH_FLAGS) \
 	-Wl,-T,linker/kernel.ld \
 	-Wl,--gc-sections \
 	-Wl,-u,minemu_bootstrap \
+	-Wl,-u,minemu_irq_trampoline \
 	-Wl,-Map,$(BUILD)/minimum-kernel.map
 
 LIBGCC := $(shell $(CC) $(ARCH_FLAGS) -print-libgcc-file-name)
@@ -69,9 +85,9 @@ $(RUNTIME): $(RUNTIME_OBJECTS)
 	@mkdir -p $(dir $@)
 	$(AR) rcs $@ $^
 
-$(KERNEL): $(CORE_OBJECT) $(RUNTIME) linker/kernel.ld
+$(KERNEL): $(CORE_OBJECTS) $(IRQ_OBJECTS) $(RUNTIME) linker/kernel.ld
 	@mkdir -p $(dir $@)
-	$(CC) $(LDFLAGS) $(CORE_OBJECT) $(RUNTIME) $(LIBGCC) -o $@
+	$(CC) $(LDFLAGS) $(CORE_OBJECTS) $(IRQ_OBJECTS) $(RUNTIME) $(LIBGCC) -o $@
 
 $(BUILD)/core/%.o: src/core/%.c
 	@mkdir -p $(dir $@)

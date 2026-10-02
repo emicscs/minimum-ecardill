@@ -7,6 +7,9 @@
 void minemu_irq_trampoline(void) __attribute__((noreturn));
 struct minemu_trap_frame *minemu_irq_dispatch(struct minemu_trap_frame *frame);
 
+/* Unmask only the UART0 source. Other sources stay disabled. */
+void minemu_irq_enable_uart0(void);
+
 static inline void minemu_irq_enable(void) {
     __asm__ volatile("cpsie i" : : : "memory");
 }
