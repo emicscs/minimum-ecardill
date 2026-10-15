@@ -161,8 +161,11 @@ static void msh_execute(const char *line, size_t length) {
 }
 
 void minemu_user_main(void) {
-    struct msh_input input = {.length = 0, .next = 0};
+    struct msh_input input;
     char line[MSH_LINE_CAPACITY];
+
+    input.length = 0;
+    input.next = 0;
 
     for (;;) {
         msh_puts("msh> ");

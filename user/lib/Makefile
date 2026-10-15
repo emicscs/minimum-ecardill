@@ -10,7 +10,9 @@ DEPENDENCIES := $(OBJECTS:.o=.d)
 
 ARCH_FLAGS := -mcpu=cortex-a9 -marm -mfloat-abi=soft
 CPPFLAGS := -Iinclude -I../../kernel/include
-CFLAGS := $(ARCH_FLAGS) -O2 -ffreestanding -fno-builtin -fdata-sections \
+# No loop-to-memset rewriting: this library defines memset/memcpy itself, and
+# -O2 would otherwise compile their loops into calls to themselves.
+CFLAGS := $(ARCH_FLAGS) -O2 -fno-tree-loop-distribute-patterns -ffreestanding -fno-builtin -fdata-sections \
 	-ffunction-sections -fno-stack-protector -std=c11 -Wall -Wextra -Werror -MMD -MP
 
 .PHONY: all clean
