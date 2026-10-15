@@ -87,9 +87,14 @@ $(KERNEL): $(CORE_OBJECTS) $(IRQ_OBJECTS) $(SVC_OBJECTS) $(RUNTIME) linker/kerne
 	@mkdir -p $(dir $@)
 	$(CC) $(LDFLAGS) $(CORE_OBJECTS) $(IRQ_OBJECTS) $(SVC_OBJECTS) $(RUNTIME) $(LIBGCC) -o $@
 
+# The loader and syscall path must finish inside the tests' tick budgets.
+# Loop-to-memset rewriting stays off: memset itself lives in this kernel.
+# Page buffers are byte arrays filled word-wise, so aliasing stays permissive.
+CORE_CFLAGS := -O2 -fno-tree-loop-distribute-patterns -fno-strict-aliasing
+
 $(BUILD)/core/%.o: src/core/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(CORE_CFLAGS) -c $< -o $@
 
 $(BUILD)/runtime/%.o: src/runtime/%.c
 	@mkdir -p $(dir $@)

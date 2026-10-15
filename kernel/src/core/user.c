@@ -1,5 +1,6 @@
 #include "minemu/user.h"
 
+#include "minemu/console.h"
 #include "minemu/platform.h"
 
 #define BOOTSTRAP_PAGE_DIRECTORY_PADDR UINT32_C(0x40010000)
@@ -18,7 +19,22 @@ static uint32_t user_page_vaddrs[MAX_USER_IMAGE_PAGES];
 static uint32_t user_page_flags[MAX_USER_IMAGE_PAGES];
 static size_t user_page_count;
 
+/*
+ * Loading runs before user entry and inside the tests' tick budgets, so
+ * page-sized clears and copies go a word at a time whenever alignment allows.
+ */
+static bool word_aligned(uintptr_t value) {
+    return (value & 3U) == 0U;
+}
+
 static void zero_bytes(void *destination, size_t length) {
+    if (word_aligned((uintptr_t)destination | length)) {
+        uint32_t *words = destination;
+        for (size_t index = 0; index < length / 4U; ++index) {
+            words[index] = 0;
+        }
+        return;
+    }
     uint8_t *bytes = destination;
     for (size_t index = 0; index < length; ++index) {
         bytes[index] = 0;
@@ -26,6 +42,14 @@ static void zero_bytes(void *destination, size_t length) {
 }
 
 static void copy_bytes(void *destination, const void *source, size_t length) {
+    if (word_aligned((uintptr_t)destination | (uintptr_t)source | length)) {
+        uint32_t *out = destination;
+        const uint32_t *in = source;
+        for (size_t index = 0; index < length / 4U; ++index) {
+            out[index] = in[index];
+        }
+        return;
+    }
     uint8_t *out = destination;
     const uint8_t *in = source;
     for (size_t index = 0; index < length; ++index) {
@@ -214,6 +238,9 @@ static bool load_module(const struct minemu_boot_info *boot_info,
         !image_records_valid(module->segment_table_offset, module->segment_count,
                              boot_info->image_size) ||
         (module->entry_vaddr & 3U) != 0) {
+        minemu_printf("minimum: load: bad segment table (count %u) or entry %p\n",
+                      (unsigned)module->segment_count,
+                      (void *)(uintptr_t)module->entry_vaddr);
         return false;
     }
 
@@ -227,6 +254,11 @@ static bool load_module(const struct minemu_boot_info *boot_info,
     for (uint32_t index = 0; index < module->segment_count; ++index) {
         const struct minemu_module_segment *segment = &segments[index];
         if (!segment_valid(boot_info, segment)) {
+            minemu_printf("minimum: load: segment %u rejected: vaddr %p filesz %x memsz %x "
+                          "flags %x\n",
+                          (unsigned)index, (void *)(uintptr_t)segment->virtual_address,
+                          (unsigned)segment->file_size, (unsigned)segment->memory_size,
+                          (unsigned)segment->flags);
             return false;
         }
         /* Fresh pages are zeroed, which covers BSS past file_size. */
@@ -234,6 +266,9 @@ static bool load_module(const struct minemu_boot_info *boot_info,
                                  pte_flags_from_segment(segment->flags)) ||
             !write_image_range(segment->virtual_address, image + segment->data_offset,
                                segment->file_size)) {
+            minemu_printf("minimum: load: segment %u pages: conflicting permissions "
+                          "or more than %u pages\n",
+                          (unsigned)index, MAX_USER_IMAGE_PAGES);
             return false;
         }
         if ((segment->flags & MINEMU_SEGMENT_EXECUTABLE) != 0 && segment->file_size >= 4U &&
@@ -243,6 +278,8 @@ static bool load_module(const struct minemu_boot_info *boot_info,
         }
     }
     if (!entry_is_executable) {
+        minemu_printf("minimum: load: entry %p is not in an executable segment\n",
+                      (void *)(uintptr_t)module->entry_vaddr);
         return false;
     }
 
@@ -269,10 +306,17 @@ static bool load_module(const struct minemu_boot_info *boot_info,
 bool minemu_user_load(const struct minemu_boot_info *boot_info, const char *name,
                       uint32_t *entry_out) {
     if (!map_system_rom(boot_info)) {
+        minemu_printf("minimum: load: cannot map system ROM (image size %x)\n",
+                      (unsigned)boot_info->image_size);
         return false;
     }
     const struct minemu_module_record *module = find_module(boot_info, name);
-    if (module == NULL || !load_module(boot_info, module)) {
+    if (module == NULL) {
+        minemu_printf("minimum: load: no module named %s among %u\n", name,
+                      (unsigned)boot_info->module_count);
+        return false;
+    }
+    if (!load_module(boot_info, module)) {
         return false;
     }
     *entry_out = module->entry_vaddr;
