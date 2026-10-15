@@ -8,6 +8,6 @@ uart = 0
 data = "echo ab\u007F\u007Fgoodbye world\n"
 
 [assert]
-uart0_contains = "goodbye world"
+uart0_contains = "msh> goodbye world\nmsh> "
 execution_lifecycle = "paused"
 shutdown_lifecycle = "stopped"

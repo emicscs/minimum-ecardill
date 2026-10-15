@@ -27,9 +27,14 @@ void minemu_irq_enable_uart0(void) {
 struct minemu_trap_frame *minemu_irq_dispatch(struct minemu_trap_frame *frame) {
     uint32_t source = (uint32_t)frame->exception_id;
 
+    /*
+     * Delivery retains a claim, so the CLAIM read in the trampoline returns
+     * a real source. EOI of anything else (MINEMU_IRQ_NONE) is an invalid
+     * device access, so it is only written for a known source.
+     */
     if (source < sizeof(minemu_irq_handlers) / sizeof(minemu_irq_handlers[0])) {
         minemu_irq_handlers[source]();
+        MINEMU_INTERRUPT->eoi = source;
     }
-    MINEMU_INTERRUPT->eoi = source;
     return frame;
 }

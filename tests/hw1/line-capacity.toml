@@ -5,9 +5,9 @@ max_ticks = 1000000
 [[inputs]]
 at_tick = 300000
 uart = 0
-data = "xxxxxxxxxxxxxxxxxxxx\n"
+data = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
 
 [assert]
-uart0_contains = "command not found: xxxxxxxxxxxxxxxxxxxx"
+uart0_contains = "msh> command not found: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nmsh> "
 execution_lifecycle = "paused"
 shutdown_lifecycle = "stopped"

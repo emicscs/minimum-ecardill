@@ -1,0 +1,13 @@
+image = "../../image/build/minimum.img"
+boot_rom = "../../bootloader/bootloader.bin"
+max_ticks = 2000000
+
+[[inputs]]
+at_tick = 300000
+uart = 0
+data = "echo line01\necho line02\necho line03\necho line04\necho line05\necho line06\necho line07\necho line08\necho line09\necho line10\necho line11\necho line12\n"
+
+[assert]
+uart0_contains = "msh> line01\nmsh> line02\nmsh> line03\nmsh> line04\nmsh> line05\nmsh> line06\nmsh> line07\nmsh> line08\nmsh> line09\nmsh> line10\nmsh> line11\nmsh> line12\nmsh> "
+execution_lifecycle = "paused"
+shutdown_lifecycle = "stopped"

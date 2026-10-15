@@ -8,6 +8,6 @@ uart = 0
 data = "  mystery extra\n"
 
 [assert]
-uart0_contains = "command not found: mystery"
+uart0_contains = "msh> command not found: mystery\nmsh> "
 execution_lifecycle = "paused"
 shutdown_lifecycle = "stopped"
