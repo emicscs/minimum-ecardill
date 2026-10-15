@@ -8,13 +8,31 @@
 #define SYSTEM_ROM_TABLE_COUNT 4U
 #define PAGE_TABLE_ENTRIES 1024U
 
-static uint32_t system_rom_tables[SYSTEM_ROM_TABLE_COUNT][PAGE_TABLE_ENTRIES]
-    __attribute__((aligned(MINEMU_PAGE_SIZE)));
-static uint32_t user_page_table[PAGE_TABLE_ENTRIES] __attribute__((aligned(MINEMU_PAGE_SIZE)));
-static uint8_t user_image_pages[MAX_USER_IMAGE_PAGES][MINEMU_PAGE_SIZE]
-    __attribute__((aligned(MINEMU_PAGE_SIZE)));
-static uint8_t user_stack_pages[MINEMU_USER_STACK_PAGES][MINEMU_PAGE_SIZE]
-    __attribute__((aligned(MINEMU_PAGE_SIZE)));
+/*
+ * Page tables and user pages live in free RAM past the kernel image rather
+ * than in .bss: the Boot ROM clears BSS one volatile byte at a time, and
+ * these 100 KB alone cost more boot time than the tests allow. Every page
+ * here is zeroed by the loader before use.
+ */
+#define USER_MEMORY_PADDR UINT32_C(0x40100000)
+
+struct user_memory {
+    uint32_t system_rom_tables[SYSTEM_ROM_TABLE_COUNT][PAGE_TABLE_ENTRIES];
+    uint32_t page_table[PAGE_TABLE_ENTRIES];
+    uint8_t stack_pages[MINEMU_USER_STACK_PAGES][MINEMU_PAGE_SIZE];
+    uint8_t image_pages[MAX_USER_IMAGE_PAGES][MINEMU_PAGE_SIZE];
+};
+
+extern char __minemu_und_stack_top[];
+
+#define USER_MEMORY                                                                        \
+    ((struct user_memory *)(uintptr_t)(USER_MEMORY_PADDR - MINEMU_RAM_BASE +               \
+                                       MINEMU_KERNEL_DIRECT_BASE))
+#define system_rom_tables (USER_MEMORY->system_rom_tables)
+#define user_page_table (USER_MEMORY->page_table)
+#define user_stack_pages (USER_MEMORY->stack_pages)
+#define user_image_pages (USER_MEMORY->image_pages)
+
 static uint32_t user_page_vaddrs[MAX_USER_IMAGE_PAGES];
 static uint32_t user_page_flags[MAX_USER_IMAGE_PAGES];
 static size_t user_page_count;
@@ -305,6 +323,11 @@ static bool load_module(const struct minemu_boot_info *boot_info,
 
 bool minemu_user_load(const struct minemu_boot_info *boot_info, const char *name,
                       uint32_t *entry_out) {
+    if ((uintptr_t)__minemu_und_stack_top > (uintptr_t)USER_MEMORY) {
+        minemu_printf("minimum: load: kernel image overlaps user memory at %p\n",
+                      (void *)USER_MEMORY);
+        return false;
+    }
     if (!map_system_rom(boot_info)) {
         minemu_printf("minimum: load: cannot map system ROM (image size %x)\n",
                       (unsigned)boot_info->image_size);
