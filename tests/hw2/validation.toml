@@ -1,0 +1,19 @@
+image = "fixtures/validation/build/hw2-validation.img"
+boot_rom = "../../bootloader/bootloader.bin"
+max_ticks = 1000000
+
+# One trace per check in fixtures/validation/main.c: 0xa2e000nn on pass,
+# 0xbad000nn on failure.
+[assert]
+uart0_contains = "ok\n"
+execution_lifecycle = "paused"
+shutdown_lifecycle = "stopped"
+mmu_enabled = true
+cpu_mode = "user"
+trace_values = [
+  0xa2e00001, 0xa2e00002, 0xa2e00003, 0xa2e00004, 0xa2e00005, 0xa2e00006,
+  0xa2e00007, 0xa2e00008, 0xa2e00009, 0xa2e0000a, 0xa2e0000b, 0xa2e0000c,
+  0xa2e0000d, 0xa2e0000e, 0xa2e0000f, 0xa2e00010, 0xa2e00011, 0xa2e00012,
+  0xa2e00013, 0xa2e00014, 0xa2e00015, 0xa2e00016, 0xa2e00017, 0xa2e00018,
+  0xa2e00019, 0xa2e0001a, 0xa2e0001b,
+]

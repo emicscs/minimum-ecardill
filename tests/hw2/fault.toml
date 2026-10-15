@@ -1,0 +1,12 @@
+image = "fixtures/fault/build/hw2-fault.img"
+boot_rom = "../../bootloader/bootloader.bin"
+max_ticks = 500000
+
+# The user store to the TRACE register must data-abort (0x0fa17001) before
+# reaching the device, so 0xa2f0dead and 0xa2f00002 never appear.
+[assert]
+uart0_contains = "minimum: data abort"
+execution_lifecycle = "paused"
+shutdown_lifecycle = "stopped"
+mmu_enabled = true
+trace_values = [0xa2f00001, 0x0fa17001]

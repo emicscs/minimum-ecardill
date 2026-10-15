@@ -1,18 +1,16 @@
 MINEMU ?= minemu
 
-.PHONY: all prepare-hello prepare-devices clean
+FIXTURES := hello devices validation fault
 
-all: prepare-hello prepare-devices
+.PHONY: all clean $(addprefix prepare-,$(FIXTURES))
 
-prepare-hello:
-	$(MAKE) -C fixtures/hello MINEMU="$(MINEMU)" all
+all: $(addprefix prepare-,$(FIXTURES))
 
-prepare-devices:
-	$(MAKE) -C fixtures/devices MINEMU="$(MINEMU)" all
+$(addprefix prepare-,$(FIXTURES)): prepare-%:
+	$(MAKE) -C fixtures/$* MINEMU="$(MINEMU)" all
 
 prepare-%:
 	@:
 
 clean:
-	$(MAKE) -C fixtures/hello clean
-	$(MAKE) -C fixtures/devices clean
+	@for fixture in $(FIXTURES); do $(MAKE) -C fixtures/$$fixture clean; done
