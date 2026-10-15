@@ -78,6 +78,25 @@ void minemu_uart0_rx_isr(void) {
 
 #define CPSR_IRQ_MASKED UINT32_C(0x80)
 
+/*
+ * minemu checks for interrupts only between execution batches, and every
+ * svc ends a batch in SVC mode with IRQ masked. A user program that polls
+ * UART0 through back-to-back syscalls would therefore never take the RX
+ * interrupt, so readers pull whatever the device already holds themselves.
+ */
+void minemu_uart0_rx_poll(void) {
+    uint32_t cpsr;
+
+    __asm__ volatile("mrs %0, cpsr" : "=r"(cpsr));
+    minemu_irq_disable();
+    if (!uart0_rx.paused) {
+        minemu_uart0_rx_isr();
+    }
+    if ((cpsr & CPSR_IRQ_MASKED) == 0U) {
+        minemu_irq_enable();
+    }
+}
+
 int minemu_uart0_rx_try_getc(void) {
     int byte = -1;
     uint32_t cpsr;

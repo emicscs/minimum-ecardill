@@ -25,9 +25,12 @@ int minemu_uart_getc(volatile struct minemu_uart_regs *uart);
  * the pop and then restores the caller's mask, so it is safe from the SVC
  * handler, which runs with IRQ masked. minemu_uart0_rx_wait spins on it.
  * The ISR runs with IRQ already masked and must not turn IRQ back on.
+ * minemu_uart0_rx_poll runs the ISR's drain from ordinary code, for readers
+ * that cannot count on the interrupt being delivered between their polls.
  */
 void minemu_uart0_rx_open(void);
 void minemu_uart0_rx_isr(void);
+void minemu_uart0_rx_poll(void);
 int minemu_uart0_rx_try_getc(void);
 uint32_t minemu_uart0_rx_available(void);
 int minemu_uart0_rx_wait(void);

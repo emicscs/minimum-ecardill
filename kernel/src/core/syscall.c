@@ -39,6 +39,9 @@ static int32_t ioctl_uart_read(enum minemu_ioctl_device device, uint32_t destina
     if (count < 0 || !minemu_user_range_ok(destination, (uint32_t)count, MINEMU_PTE_WRITABLE)) {
         return MINEMU_IOCTL_ERROR;
     }
+    if (device == MINEMU_IOCTL_DEVICE_UART0) {
+        minemu_uart0_rx_poll();
+    }
     uint8_t bytes[IOCTL_CHUNK];
     uint32_t total = 0;
     uint32_t remaining = (uint32_t)count;
@@ -85,6 +88,9 @@ static int32_t ioctl_uart_write(enum minemu_ioctl_device device, uint32_t source
 }
 
 static int32_t ioctl_uart_status(enum minemu_ioctl_device device) {
+    if (device == MINEMU_IOCTL_DEVICE_UART0) {
+        minemu_uart0_rx_poll();
+    }
     uint32_t status = uart_for(device)->status;
     bool rx_ready = device == MINEMU_IOCTL_DEVICE_UART0
                         ? minemu_uart0_rx_available() != 0U
