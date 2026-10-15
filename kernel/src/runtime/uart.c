@@ -76,22 +76,37 @@ void minemu_uart0_rx_isr(void) {
     }
 }
 
+#define CPSR_IRQ_MASKED UINT32_C(0x80)
+
+int minemu_uart0_rx_try_getc(void) {
+    int byte = -1;
+    uint32_t cpsr;
+
+    __asm__ volatile("mrs %0, cpsr" : "=r"(cpsr));
+    minemu_irq_disable();
+    if (uart0_rx.count > 0U) {
+        uint32_t head = uart0_rx.head;
+        byte = (int)uart0_rx.data[head];
+        uart0_rx.head = (head + 1U) % MINEMU_UART0_RX_QUEUE_CAPACITY;
+        uart0_rx.count = uart0_rx.count - 1U;
+        if (uart0_rx.paused) {
+            uart0_rx.paused = 0;
+            MINEMU_UART0->control = MINEMU_UART_CONTROL_RX_IRQ_ENABLE;
+        }
+    }
+    if ((cpsr & CPSR_IRQ_MASKED) == 0U) {
+        minemu_irq_enable();
+    }
+    return byte;
+}
+
+uint32_t minemu_uart0_rx_available(void) {
+    return uart0_rx.count;
+}
+
 int minemu_uart0_rx_wait(void) {
     for (;;) {
-        int byte = -1;
-
-        minemu_irq_disable();
-        if (uart0_rx.count > 0U) {
-            uint32_t head = uart0_rx.head;
-            byte = (int)uart0_rx.data[head];
-            uart0_rx.head = (head + 1U) % MINEMU_UART0_RX_QUEUE_CAPACITY;
-            uart0_rx.count = uart0_rx.count - 1U;
-            if (uart0_rx.paused) {
-                uart0_rx.paused = 0;
-                MINEMU_UART0->control = MINEMU_UART_CONTROL_RX_IRQ_ENABLE;
-            }
-        }
-        minemu_irq_enable();
+        int byte = minemu_uart0_rx_try_getc();
         if (byte >= 0) {
             return byte;
         }

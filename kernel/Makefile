@@ -7,8 +7,10 @@ KERNEL := $(BUILD)/minimum-kernel.elf
 RUNTIME := $(BUILD)/libminemu_kernel.a
 
 CORE_OBJECTS := \
+	$(BUILD)/core/fault.o \
 	$(BUILD)/core/main.o \
-	$(BUILD)/core/shell.o
+	$(BUILD)/core/syscall.o \
+	$(BUILD)/core/user.o
 
 # Strong IRQ entry. These are kernel-link inputs, not members of
 # libminemu_kernel.a. exception.o in that archive provides weak
@@ -22,6 +24,12 @@ IRQ_OBJECTS := \
 	$(BUILD)/startup/irq.o \
 	$(BUILD)/runtime/irq.o
 
+# Strong SVC entry and the USR-mode entry, for the same reason as above:
+# exception.c supplies a weak fail-stop minemu_svc_trampoline.
+SVC_OBJECTS := \
+	$(BUILD)/startup/svc.o \
+	$(BUILD)/startup/user.o
+
 RUNTIME_OBJECTS := \
 	$(BUILD)/runtime/block.o \
 	$(BUILD)/runtime/console.o \
@@ -32,7 +40,7 @@ RUNTIME_OBJECTS := \
 	$(BUILD)/startup/boot.o \
 	$(BUILD)/startup/vectors.o
 
-OBJECTS := $(CORE_OBJECTS) $(IRQ_OBJECTS) $(RUNTIME_OBJECTS)
+OBJECTS := $(CORE_OBJECTS) $(IRQ_OBJECTS) $(SVC_OBJECTS) $(RUNTIME_OBJECTS)
 DEPENDENCIES := $(OBJECTS:.o=.d)
 
 ARCH_FLAGS := -mcpu=cortex-a9 -marm -mfloat-abi=soft
@@ -75,9 +83,9 @@ $(RUNTIME): $(RUNTIME_OBJECTS)
 	@mkdir -p $(dir $@)
 	$(AR) rcs $@ $^
 
-$(KERNEL): $(CORE_OBJECTS) $(IRQ_OBJECTS) $(RUNTIME) linker/kernel.ld
+$(KERNEL): $(CORE_OBJECTS) $(IRQ_OBJECTS) $(SVC_OBJECTS) $(RUNTIME) linker/kernel.ld
 	@mkdir -p $(dir $@)
-	$(CC) $(LDFLAGS) $(CORE_OBJECTS) $(IRQ_OBJECTS) $(RUNTIME) $(LIBGCC) -o $@
+	$(CC) $(LDFLAGS) $(CORE_OBJECTS) $(IRQ_OBJECTS) $(SVC_OBJECTS) $(RUNTIME) $(LIBGCC) -o $@
 
 $(BUILD)/core/%.o: src/core/%.c
 	@mkdir -p $(dir $@)
